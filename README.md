@@ -2,6 +2,8 @@
 A very simplistic script (combination of two separate) to get all the search results from [Duunitori.fi](https://duunitori.fi) and write those into a  single JSON file to search from.
 
 ## How to use
+- Check that you have Node v17 or later to make sure things work. Some parts (mainly with detailed search) are using experimental features with Node that are still prone to change.
+
 1. After having cloned the repo, go to `scripts/` and open `searchAll.js`
 	- In the file, somewhere near the top are the variables `urlPlace` and `urlSearch`, edit those to fit what you're looking for
 

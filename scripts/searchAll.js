@@ -1,4 +1,4 @@
-// module requires
+// module imports
 import querystring from "querystring";
 import fs from "fs";
 
@@ -7,13 +7,12 @@ const startTime = Date.now();
 
 // variables to create the url
 const urlBase = "https://duunitori.fi/tyopaikat";
-let searchPage = 1;
 
 // variables to change to get different results
 // both of which should be arrays of strings as input ["string1", "string2", "string3"]
 const urlPlace = ["pääkaupunkiseutu"];
 const urlSearch = ["software developer"];
-const limitSet = true
+const limitSet = false;
 
 // build the full url from the bits
 let fullURL = `${urlBase}?${querystring.stringify({alue: urlPlace.join(";"), haku: urlSearch.join(";")})}`;
@@ -26,8 +25,7 @@ let currentJobNum = 0;
 let allJobs = [];
 
 // do the first page call
-let data = await apiCall(fullURL);
-parseSearchPage(data.data, true);
+await parseSearchPage(fullURL, true);
 
 // do math to figure out how many pages there is to do still
 let totalPages = Math.ceil(jobsTotal / 20);
@@ -43,12 +41,21 @@ if (limitSet && totalPages >= 50) {
 	process.exit();
 }
 
+// variable for all the promises
+let promises = []
+
+console.log("Starting to work on the rest of the pages, hang on...");
 // loop through the rest of the pages and parsing those
 for (let i = 2; i <= totalPages; i++) {
-	console.log(`Starting work on page: "${i}"`);
-	let otherData = await apiCall(`${fullURL}&sivu=${i}`);
-	parseSearchPage(otherData.data);
+	promises.push(await parseSearchPage(`${fullURL}&sivu=${i}`));
+	if (i % 50 == 0) {
+		console.log("sleeping for 2sec");
+		sleepSync(2000);
+	}
 }
+
+// wait till all promises are done, continue after that
+await Promise.all(promises);
 
 // sort all the jobs according to company name in ascending order
 allJobs = allJobs.sort((a, b) => {
@@ -70,38 +77,63 @@ console.log(`\nTook: "${Date.now() - startTime}"ms to do everything.\n` +
 
 
 // function to parse the page
-function parseSearchPage (data = "", firstPage = false) {
+async function parseSearchPage (url = "", firstPage = false) {
+	// do the api call
+	const apiData = await apiCall(url);
+
+	// check if call ok
+	if (apiData.status == "problem") {
+		console.log(`Found some issues with api call: "${apiData.message}"`);
+		return;
+	}
+
 	// to start with split the data got by newlines, map through it trimming things and removing empty lines
-	const splitData = data.split("\n").map(elem => elem.trim()).filter(elem => elem.length > 0);
+	const splitData = apiData.data.split("\n").map(elem => elem.trim()).filter(elem => elem.length > 0);
 
 	// if it's the first page, parse the job totals
 	if (firstPage) {
-		// loop through the split data to find a specific element
-		for (let i = 0; i < splitData.length; i++) {
-			if (splitData[i].match(/avoimet työpaikat/gi) && splitData[i].startsWith("<h1")) {
-				// parse out how many jobs there are
-				[jobsTotal, jobsNew, ...jobsRest] = splitData[i + 2].match(/(?<=<b>)(\d+\s*\d+)/g).map(elem => parseInt(elem));
-			}
-		}
+		// use findIndex to find a specific element
+		let openIndex = splitData.findIndex(elem => elem.match(/avoimet työpaikat/gi) && elem.startsWith("<h1"));
+		// parse out how many jobs there are
+		[jobsTotal, jobsNew, ...jobsRest] = splitData[openIndex + 2].match(/(?<=<b>)(\d+\s*\d+)/g).map(elem => parseInt(elem));
 	}
 
 	// loop through the data and find all elems containing the search results
-	for (let i = 0; i < splitData.length; i++) {
+	for (let i = 1000; i < splitData.length; i++) {
 		if (splitData[i].match(/gtm-search-result/gi)) {
-			// check if there is a "katso" value on the one after the match
-			if (splitData[i + 1].match(/katso|uusi|hae/i)) splitData.splice(i, 1);
-
-			// parse out the data wanted for the job
-			let jobData = {
-				company: splitData[i + 1].match(/(?<=data-company=")(.*?)"/)[1],
-				name: splitData[i + 1].match(/(?<=>).*(?=<)/)[0],
-				link: `https://duunitori.fi${splitData[i + 1].match(/(?<=href=")(.*?)"/)[1]}`
-			};
-
-			// push the job data to the allJobs array for use later
-			allJobs.push(jobData);
+			// get a block of 40 lines and send it to parseJob which returns the data
+			parseJob(splitData.slice(i, i + 40));
 		}
 	}
+}
+
+// helper function for parsing data
+function parseJob (data) {
+	// find the index of the bit with data-company
+	let baseDataIndex = data.findIndex(elem => elem.match(/data-company/i));
+
+	// create the base object
+	let jobData = {
+		company: data[baseDataIndex].match(/(?<=data-company=")(.*?)"/)[1],
+		name: data[baseDataIndex].match(/(?<=>).*(?=<)/)[0],
+		link: `https://duunitori.fi${data[baseDataIndex].match(/(?<=href=")(.*?)"/)[1]}`,
+	};
+
+	/*// get the location // disabled for now, kind of useless without having the full data of where it is
+	let locationIndex = data.findIndex(elem => elem.match(/job-location/i));
+	locationIndex != -1 ? jobData.location = `${data[locationIndex + 2]}` +
+		`${data[locationIndex + 3].startsWith("ja") ? ` + ${data[locationIndex + 3].split(" ")[1]} other` : ""}` : "";*/
+
+	// get when posted
+	jobData.posted = data[data.findIndex(elem => elem.match(/posted/i))].match(/(?<=julkaistu )\d+.\d+./i)[0];
+
+	// add the data to the allJobs array
+	allJobs.push(jobData);
+}
+
+function sleepSync (ms) {
+  const end = new Date().getTime() + ms;
+  while (new Date().getTime() < end) { /* do nothing */ }
 }
 
 // helper function for API calls
