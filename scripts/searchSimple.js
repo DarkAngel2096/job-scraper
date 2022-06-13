@@ -1,6 +1,7 @@
 // module imports
 import querystring from "querystring";
 import fs from "fs";
+import { apiCall, sleepSync } from "./helperFunctions.js";
 
 // get start time to figure out how long things took
 const startTime = Date.now();
@@ -47,9 +48,10 @@ let promises = []
 console.log("Starting to work on the rest of the pages, hang on...");
 // loop through the rest of the pages and parsing those
 for (let i = 2; i <= totalPages; i++) {
-	promises.push(await parseSearchPage(`${fullURL}&sivu=${i}`));
-	if (i % 50 == 0) {
-		console.log("sleeping for 2sec");
+	promises.push(parseSearchPage(`${fullURL}&sivu=${i}`));
+
+	if (i % 25 == 0) {
+		console.log(`Sleeping for 2sec at: ${i} pages done.`);
 		sleepSync(2000);
 	}
 }
@@ -98,12 +100,11 @@ async function parseSearchPage (url = "", firstPage = false) {
 		[jobsTotal, jobsNew, ...jobsRest] = splitData[openIndex + 2].match(/(?<=<b>)(\d+\s*\d+)/g).map(elem => parseInt(elem));
 	}
 
-	// loop through the data and find all elems containing the search results
-	for (let i = 1000; i < splitData.length; i++) {
-		if (splitData[i].match(/gtm-search-result/gi)) {
-			// get a block of 40 lines and send it to parseJob which returns the data
-			parseJob(splitData.slice(i, i + 40));
-		}
+	// use .map() to find the index where search results start and filter with strings to remove not founds
+	let searchIndex = splitData.map((elem, i) => elem.match(/gtm-search-result/gi) ? i : "").filter(String);
+
+	if (searchIndex.length > 0) {
+		searchIndex.forEach(elem => parseJob(splitData.slice(elem, elem + 40)));
 	}
 }
 
@@ -119,41 +120,9 @@ function parseJob (data) {
 		link: `https://duunitori.fi${data[baseDataIndex].match(/(?<=href=")(.*?)"/)[1]}`,
 	};
 
-	/*// get the location // disabled for now, kind of useless without having the full data of where it is
-	let locationIndex = data.findIndex(elem => elem.match(/job-location/i));
-	locationIndex != -1 ? jobData.location = `${data[locationIndex + 2]}` +
-		`${data[locationIndex + 3].startsWith("ja") ? ` + ${data[locationIndex + 3].split(" ")[1]} other` : ""}` : "";*/
-
-	// get when posted
+	// get date when posted
 	jobData.posted = data[data.findIndex(elem => elem.match(/posted/i))].match(/(?<=julkaistu )\d+.\d+./i)[0];
 
 	// add the data to the allJobs array
 	allJobs.push(jobData);
-}
-
-function sleepSync (ms) {
-  const end = new Date().getTime() + ms;
-  while (new Date().getTime() < end) { /* do nothing */ }
-}
-
-// helper function for API calls
-import https from "https";
-
-async function apiCall(endpoint) {
-	// create and return a new promise, this way we can await for the response
-	return new Promise((resolve, reject) => {
-		// make a GET call to the endpoint (which has the query params already added)
-		https.get(endpoint, (res) => {
-			// if the response is less than 200, or more than 300 something probably went wrong, catch these
-			if (res.statusCode < 200 || res.statusCode > 299) {
-				// if one of these was found, resolve this with a message showing the code and a "problem" status
-				resolve({message: `Server responded with code: ${res.statusCode}`, status: "problem", statusCode: res.statusCode});
-			}
-
-			let data = "";
-
-			// on data respose add to the data variable, on end response resolve the promise with the data and an "ok" status
-			res.on("data", (chunk) => { data += chunk; }).on("end", () => { resolve({data: data, status: "ok"}); });
-		}).on("error", (err) => { console.log(err); });
-	});
 }

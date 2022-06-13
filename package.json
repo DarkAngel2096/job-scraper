@@ -4,7 +4,8 @@
   "description": "",
   "main": "main.js",
   "scripts": {
-	"searchAll": "node scripts/searchAll.js",
+	"searchAll": "node scripts/searchSimple.js && node scripts/searchDetails.js",
+	"searchSimple": "node scripts/searchSimple.js",
 	"searchDetail": "node scripts/searchDetails.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
