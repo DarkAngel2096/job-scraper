@@ -51,13 +51,6 @@ async function getPageDetails(job) {
 	// split the data with newlines, trim out whitespace and filter out empty things
 	const splitPageData = pageData.data.split("\n").map(elem => elem.trim()).filter(elem => elem.length > 0);
 
-	// get the index of where the job description starts and where the apply button is
-	const detailsIndex = splitPageData.findIndex(elem => elem.match(/description--jobentry/i));
-	const detailsEnd = splitPageData.findIndex(elem => elem.match(/js-jobentry-apply btn--max/i));
-
-	// slice out the details, and remove all html tags
-	job.description = splitPageData.slice(detailsIndex, detailsEnd).map(elem => elem.replace(/<.*?>/g, "").trim()).filter(elem => elem.length > 0).join(" ");
-
 	// find the index of where the location data starts
 	const locationIndex = splitPageData.findIndex(elem => elem.match(/työpaikan sijainti/i));
 
@@ -65,4 +58,11 @@ async function getPageDetails(job) {
 	if (splitPageData[locationIndex + 4].startsWith("<span>")) {
 		job.location = splitPageData[locationIndex + 4].replace(/<.*?>/g, "");
 	}
+
+	// get the index of where the job description starts and where the apply button is
+	const detailsIndex = splitPageData.findIndex(elem => elem.match(/description--jobentry/i));
+	const detailsEnd = splitPageData.findIndex(elem => elem.match(/js-jobentry-apply btn--max/i));
+
+	// slice out the details, and remove all html tags
+	job.description = splitPageData.slice(detailsIndex, detailsEnd).map(elem => elem.replace(/<.*?>/g, " ").trim()).filter(elem => elem.length > 0).join(" ");
 }

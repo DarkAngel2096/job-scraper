@@ -12,11 +12,16 @@ const urlBase = "https://duunitori.fi/tyopaikat";
 // variables to change to get different results
 // both of which should be arrays of strings as input ["string1", "string2", "string3"]
 const urlPlace = ["pääkaupunkiseutu"];
-const urlSearch = ["software developer"];
+const urlSearch = ["software developer", "ohjelmisto kehittäjä"];
 const limitSet = false;
 
 // build the full url from the bits
-let fullURL = `${urlBase}?${querystring.stringify({alue: urlPlace.join(";"), haku: urlSearch.join(";")})}`;
+let fullURL = `${urlBase}?${querystring.stringify(
+	{
+		alue: urlPlace.join(";"),
+		haku: urlSearch.join(";"),
+		search_also_descr: 1
+	})}`;
 
 // variables to hold job count data
 let [jobsTotal, jobsNew, jobsRest] = [0, 0, []];

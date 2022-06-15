@@ -15,6 +15,9 @@ A very simplistic script (combination of two separate) to get all the search res
 
 4. If you want to run everything in one go, use `npm run searchAll` and it'll run both simple and detailed searches. Tho it will break if anything goes wrong.
 
+5. There's another script file, which will need some changes done to it. Namely the `filterJobs.js` file, which is just used to well, filter the jobs found from the all jobs files in whatever way you wish.
+	- I've just gone with looping through everything, having if statements to find things that I either don't want there, or do want there.
+
 
 - If you want to get new data, go back to step 1 and edit the variables again.
 - If you want to keep the data from the previous run, rename the files in `outputData/`
