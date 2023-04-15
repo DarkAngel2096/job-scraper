@@ -1,3 +1,3 @@
-export const func1 = () => {
-    return "string 1";
+export default function main() {
+    return "duunitori simple main";
 }

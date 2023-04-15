@@ -1,1 +1,3 @@
-console.log("oikotie search simple");
+export default function main() {
+    return "oikotie simple main";
+}
