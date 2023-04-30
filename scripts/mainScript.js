@@ -1,17 +1,17 @@
 // module and file imports
 import fs from "fs";
 
-
 // script start
-console.log(`Starting the script at: '${new Date().toLocaleTimeString()}'`);
+const scriptStartTime = new Date();
+console.log(`Starting the script at: '${scriptStartTime.toLocaleTimeString()}'\n`);
 
 // get process args
 const args = process.argv.slice(2);
-console.log(args);
+//console.log(args);
 
 // read the site dirs found
 const sites = fs.readdirSync("./scripts/sites");
-console.log(sites);
+//console.log(sites);
 
 // import the files found in a loop
 let files = {
@@ -22,34 +22,36 @@ let files = {
 for (let site of sites) {
     // check if simple file exists and import it if it does
     if (fs.existsSync(`./scripts/sites/${site}/simple.js`)) {
-        files.simple[site] = await import(`./sites/${site}/simple.js`);
-    } else console.log(`simple for "${site}" is missing`);
+        // check if any of the args match with the site name
+        if (args.length === 0 || (args.length > 0 && args.includes(site.toLowerCase().trim()))) {
+            files.simple[site] = await import(`./sites/${site}/simple.js`);
+        }
+    }
 
     // check if full file exists and import it if it does
     if (fs.existsSync(`./scripts/sites/${site}/full.js`)) {
-        files.full[site] = await import(`./sites/${site}/full.js`);
-    } else console.log(`full for "${site}" is missing`);
+        // check if any of the args match with the site name
+        if (args.length === 0 || (args.length > 0 && args.includes(site.toLowerCase().trim()))) {
+            files.full[site] = await import(`./sites/${site}/full.js`);
+        }
+    }
 }
 // to run a script, do `site.default()` to run it
 
 
 // loop through the args, checking if a site should be checked through
 for (let [siteKey, siteFunction] of Object.entries(files.simple)) {
-    console.log(siteKey, siteFunction.default());
+    console.log("site found: " + siteKey);
+    await siteFunction.default();
 }
 
 // loop through the args, checking if a site should be checked through
 for (let [siteKey, siteFunction] of Object.entries(files.full)) {
-    console.log(siteKey, siteFunction.default());
+    //console.log(siteKey);
+    //await siteFunction.default();
 }
 
 
-
-
-
-
-
-
-
 // script end
-console.log(`Script run ended at: '${new Date().toLocaleTimeString()}'`);
+const scriptEndTime = new Date();
+console.log(`\nScript run ended at: '${scriptEndTime.toLocaleTimeString()}', took: '${scriptEndTime - scriptStartTime}ms.'`);
