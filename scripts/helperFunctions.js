@@ -1,6 +1,7 @@
 // helper function for API calls
 import https from "https";
 
+// function to do an API call to somewhere
 async function apiCall(endpoint) {
 	// create and return a new promise, this way we can await for the response
 	return new Promise((resolve, reject) => {
@@ -20,24 +21,27 @@ async function apiCall(endpoint) {
 	});
 }
 
-
 // function to wait some specific time
 function sleepSync (ms) {
 	const end = new Date().getTime() + ms;
 	while (new Date().getTime() < end) { /* do nothing */ }
 }
 
-//import querystring from "querystring";
-import fs from "fs";
+// function to create a URL from a base url bit and all the params
+async function createUrl (baseUrl, params) {
+	const querystring = await import("querystring");
+
+	return `${baseUrl}?${querystring.stringify(params)}`
+}
 
 // function to get the amount of jobs from a site
-async function getSiteJobCount ({ url: url, searchParams: searchParams, stringToFind: stringToFind }) {
-	const test = true;
+async function getSiteJobCount ({ urlAndSearch: urlAndSearch, stringToFind: stringToFind }) {
+	const test = false;
 
-	if (test) console.log(url, searchParams, stringToFind);
+	if (test) console.log(urlAndSearch, stringToFind);
 
 	// create the url for the page to be searched, then split the page on newlines, trimming every like and filtering out empty stuff
-	const fullUrl = await createUrl(url, searchParams);
+	const fullUrl = await createUrl(urlAndSearch.url, urlAndSearch.searchParams);
 
 	if (test) console.log(fullUrl);
 
@@ -51,7 +55,8 @@ async function getSiteJobCount ({ url: url, searchParams: searchParams, stringTo
 
 	const pageSplitDetails = pageDetails.data.split("\n").map(elem => elem.trim()).filter(elem => elem.length > 0);
 
-	//fs.writeFileSync("./Page.html", pageSplitDetails.join("\n"));
+	// const fs = await import("fs");
+	// fs.writeFileSync("./Page.html", pageSplitDetails.join("\n"));
 	if (test) console.log(pageSplitDetails.length);
 
 	// create the regex for the string to find, and search for it, also checking for the specific element that is at the start of the line
@@ -76,20 +81,20 @@ async function getSiteJobCount ({ url: url, searchParams: searchParams, stringTo
 
 	const returnObject = {
 		jobsTotal: jobsTotal,
-		newJobs: stringToFind.new ? jobsTotal[0] : undefined,
+		newJobs: stringToFind.new ? jobsRest[0] : undefined,
 		pagesTotal: Math.ceil(jobsTotal / stringToFind.jobsPerPage)
 	}
 
-	console.log(returnObject);
+	if (test) console.log(returnObject);
 
-	//return returnObject;
+	return returnObject;
 }
 
-async function createUrl (baseUrl, params) {
-	const querystring = await import("querystring");
+async function getJobsFromList ({ urlAndSearch: urlAndSearch, stringToFind: stringToFind }) {
+	const test = true;
 
-	return `${baseUrl}?${querystring.stringify(params)}`
+	if (test) console.log(urlAndSearch, stringToFind);
 }
 
 
-export { apiCall, sleepSync, getSiteJobCount }
+export { apiCall, sleepSync, getSiteJobCount, getJobsFromList }
