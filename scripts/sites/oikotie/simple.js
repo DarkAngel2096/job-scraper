@@ -1,20 +1,17 @@
-import { getSiteJobCount } from "./../../helperFunctions.js";
+import { getJobCount } from "./../../helperFunctions.js";
 
 export default async function main() {
 
     let urlAndSearch = {
         url: "https://tyopaikat.oikotie.fi/tyopaikat",
-        searchParams: {
+        queryParams: {
             hakusana: "software developer",
         }
     }
 
-    let jobCounts = await getSiteJobCount({
-        urlAndSearch: urlAndSearch,
-        stringToFind: {
-            string: "Hakutulokset",
-            jobsPerPage: 25
-        }
+    let jobCounts = await getJobCount(urlAndSearch, {
+        element: "span",
+        specialText: "hakutulokset"
     });
 
     console.log(jobCounts);

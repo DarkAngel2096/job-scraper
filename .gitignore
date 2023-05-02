@@ -1,2 +1,5 @@
 #ignore the actual data gathered
 outputData/
+node_modules/
+
+package-lock.json

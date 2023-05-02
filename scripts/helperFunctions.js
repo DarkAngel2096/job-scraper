@@ -29,10 +29,58 @@ function sleepSync (ms) {
 
 // function to create a URL from a base url bit and all the params
 async function createUrl (baseUrl, params) {
-	const querystring = await import("querystring");
-
 	return `${baseUrl}?${querystring.stringify(params)}`
 }
+
+import axios from "axios";
+import querystring from "querystring";
+import { JSDOM } from "jsdom";
+
+// function to do async calls with Axios, with inputting the baseURL and the query params in 2 variables in
+const axiosCall = async (url, queryParams) => {
+	// Combine base URL and query params
+	const fullUrl = `${url}?${new URLSearchParams(queryParams).toString()}`;
+
+	console.log(fullUrl);
+
+	// Make API call and return response data
+	try {
+		const response = await axios.get(fullUrl);
+		return response.data;
+	} catch (error) {
+		throw new Error(`API call failed: ${error.message}`);
+	}
+};
+
+// function to get the job count from the site
+const getJobCount = async ({ url, queryParams }, { element, specialText }) => {
+	// Combine base URL and query params
+	const fullUrl = `${url}?${new URLSearchParams(queryParams).toString()}`;
+	console.log(fullUrl);
+
+	// get the JSDOM document variable
+	const pageDom = await JSDOM.fromURL(fullUrl);
+
+	// search all elems fitting the "element" variable
+	const foundElems = pageDom.window.document.querySelectorAll(element);
+
+	console.log(foundElems.length);
+
+	// Use Array.from() to convert the NodeList to an array
+	const matchingElements = Array.from(foundElems).filter((element) => {
+		// Convert both the element content and search text to lowercase
+		const elementContent = element.textContent.replace(/\r?\n|\r/g, "").trim().toLowerCase();
+		const search = specialText.toLowerCase();
+
+		// Use the includes() method to check if the element content contains the search text
+		return elementContent.includes(search);
+	});
+
+	console.log(matchingElements.map(elem => elem.textContent));
+
+};
+
+
 
 // function to get the amount of jobs from a site
 async function getSiteJobCount ({ urlAndSearch: urlAndSearch, stringToFind: stringToFind }) {
@@ -97,4 +145,4 @@ async function getJobsFromList ({ urlAndSearch: urlAndSearch, stringToFind: stri
 }
 
 
-export { apiCall, sleepSync, getSiteJobCount, getJobsFromList }
+export { apiCall, sleepSync, getSiteJobCount, axiosCall, getJobCount }
