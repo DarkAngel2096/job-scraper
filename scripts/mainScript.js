@@ -3,7 +3,7 @@ import fs from "fs";
 
 // script start
 const scriptStartTime = new Date();
-console.log(`Starting the script at: '${scriptStartTime.toLocaleTimeString()}'\n`);
+console.log(`Starting the script at: '${scriptStartTime.toLocaleTimeString()}'`);
 
 // get process args
 const args = process.argv.slice(2);
@@ -41,7 +41,7 @@ for (let site of sites) {
 
 // loop through the args, checking if a site should be checked through
 for (let [siteKey, siteFunction] of Object.entries(files.simple)) {
-    console.log("site found: " + siteKey);
+    console.log("\nsite found: " + siteKey);
     await siteFunction.default();
 }
 

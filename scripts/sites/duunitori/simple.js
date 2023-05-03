@@ -1,10 +1,10 @@
-import { getJobCount } from "./../../helperFunctions.js";
+import { getJobCount, getJobsFromList } from "./../../helperFunctions.js";
 
 export default async function main() {
-
     // variable for the url and it's search params
     let urlAndSearch = {
-        url: "https://duunitori.fi/tyopaikat",
+        url: "https://duunitori.fi",
+        endpoint: "tyopaikat",
         queryParams: {
             haku: "software developer",
             alue: "pääkaupunkiseutu",
@@ -12,40 +12,35 @@ export default async function main() {
         }
     }
 
-
-
-
-
     // get the job count from a page, with the object having the details
     let jobCounts = await getJobCount(urlAndSearch, {
         element: "h5",
-        specialText: "työpaikkaa"
+        specialText: "työpaikkaa",
+        hasNew: true
     });
-
-    /*
-    stringToFind: {
-        string: "avoimet työpaikat",
-        startsWith: "<h1",
-        countFoundIn: 2,
-        specialNumTag: "(?<=<b>)",
-        new: true,
-        jobsPerPage: 20
-    }*/
 
     console.log(jobCounts);
 
-    // loop over all the pages, getting the jobs from each page
-    /*for (let page = 0; page < jobCounts.pagesTotal; page++) {
-        await getJobsFromList({
-            urlAndSearch: urlAndSearch,
-            stringToFind: {
-                string: ""
+    let promises = []
+
+    for (let page = 1; page <= jobCounts.pagesTotal; page++) {
+        urlAndSearch.queryParams.page = page;
+        console.log("getting page: " + page);
+
+        promises.push(getJobsFromList(urlAndSearch, {
+            element: "a",
+            specialSelector: "search-result",
+            dataClasses: {
+                parent: ".job-box",
+                jobTitle: ".job-box__title",
+                companyName: "data-company",
+                posted: ".job-box__job-posted",
+                link: "gtm-search-result"
             }
-        });
+        }));
+    }
 
-        break;
-    }*/
+    let promiseData = await Promise.all(promises);
 
-
-    return "duunitori simple main";
+    console.log(promiseData);
 }

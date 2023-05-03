@@ -1,5 +1,8 @@
 // helper function for API calls
 import https from "https";
+import axios from "axios";
+import querystring from "querystring";
+import { JSDOM } from "jsdom";
 
 // function to do an API call to somewhere
 async function apiCall(endpoint) {
@@ -32,9 +35,6 @@ async function createUrl (baseUrl, params) {
 	return `${baseUrl}?${querystring.stringify(params)}`
 }
 
-import axios from "axios";
-import querystring from "querystring";
-import { JSDOM } from "jsdom";
 
 // function to do async calls with Axios, with inputting the baseURL and the query params in 2 variables in
 const axiosCall = async (url, queryParams) => {
@@ -53,96 +53,67 @@ const axiosCall = async (url, queryParams) => {
 };
 
 // function to get the job count from the site
-const getJobCount = async ({ url, queryParams }, { element, specialText }) => {
-	// Combine base URL and query params
-	const fullUrl = `${url}?${new URLSearchParams(queryParams).toString()}`;
-	console.log(fullUrl);
+const getJobCount = async ({ url, endpoint, queryParams }, { element, specialText, hasNew = false, jobsPerPage = 20 }) => {
+    // combine base URL and query params
+    const fullUrl = `${url}/${endpoint}?${new URLSearchParams(queryParams).toString()}`;
 
-	// get the JSDOM document variable
-	const pageDom = await JSDOM.fromURL(fullUrl);
+    // get the JSDOM document variable
+    const pageDom = await JSDOM.fromURL(fullUrl);
 
-	// search all elems fitting the "element" variable
-	const foundElems = pageDom.window.document.querySelectorAll(element);
+    // search all elems fitting the "element" variable
+    const foundElems = pageDom.window.document.querySelectorAll(element);
 
-	console.log(foundElems.length);
+    // use Array.from() to convert the NodeList to an array and filter for elements that contain the special text
+    const matchingElements = Array.from(foundElems).filter(elem => elem?.textContent?.toLowerCase().includes(specialText.toLowerCase()));
 
-	// Use Array.from() to convert the NodeList to an array
-	const matchingElements = Array.from(foundElems).filter((element) => {
-		// Convert both the element content and search text to lowercase
-		const elementContent = element.textContent.replace(/\r?\n|\r/g, "").trim().toLowerCase();
-		const search = specialText.toLowerCase();
+    // get the string that contains the job counts, removing any newlines and trimming it
+    const jobCountString = matchingElements?.shift()?.textContent.replace(/\r?\n|\r/g, "").trim();
 
-		// Use the includes() method to check if the element content contains the search text
-		return elementContent.includes(search);
-	});
+    // extract the total number of jobs and new jobs count (if hasNew is true) from the job count string using regex
+    const [jobsTotal, newJobsCount] = jobCountString.match(/\d+/g).map(Number);
 
-	console.log(matchingElements.map(elem => elem.textContent));
-
+    // create the return object, and return it
+    const returnObject = {
+        jobsTotal,
+        newJobs: hasNew ? newJobsCount : undefined,
+        pagesTotal: Math.ceil(jobsTotal / jobsPerPage)
+    };
+    return returnObject;
 };
 
 
 
-// function to get the amount of jobs from a site
-async function getSiteJobCount ({ urlAndSearch: urlAndSearch, stringToFind: stringToFind }) {
-	const test = false;
 
-	if (test) console.log(urlAndSearch, stringToFind);
+const getJobsFromList = async ({ url, endpoint, queryParams }, { element, specialSelector, dataClasses, linkFull }) => {
+	// combine base URL and query params
+	const fullUrl = `${url}/${endpoint}?${new URLSearchParams(queryParams).toString()}`;
+	// get the JSDOM document variable
+    const pageDom = await JSDOM.fromURL(fullUrl);
 
-	// create the url for the page to be searched, then split the page on newlines, trimming every like and filtering out empty stuff
-	const fullUrl = await createUrl(urlAndSearch.url, urlAndSearch.searchParams);
+	// build the selector used in the querySelectorAll function to find all the job postings
+	const selector = `${element}${specialSelector ? `[class*="${specialSelector}"]` : ""}`
 
-	if (test) console.log(fullUrl);
+	// search all elems fitting the "element" variable
+    const foundElems = pageDom.window.document.querySelectorAll(selector);
 
-	const pageDetails = await apiCall(fullUrl);
 
-	// check if pageDetails is ok
-	if (pageDetails.statusCode < 200 || pageDetails.statusCode > 299) {
-		console.log(`problems found, code: "${JSON.stringify(pageDetails)}"`);
-		return;
+	// loop over all the elements found
+	for (let foundElem of Array.from(foundElems)) {
+		const parentElement = foundElem.closest(dataClasses.parent);
+		const titleElement = parentElement.querySelector(dataClasses.jobTitle);
+		const postedElement = parentElement.querySelector(dataClasses.posted);
+	 	const linkElement = parentElement.querySelector(dataClasses.link);
+
+		let jobDetails = {
+			jobTitle: titleElement?.textContent.replace(/\r?\n|\r/g, "").trim(),
+			companyTitle: foundElem.getAttribute(dataClasses.companyName),
+			posted: postedElement?.textContent.replace(/\r?\n|\r/g, "").trim(),
+			link: linkFull ? linkElement.getAttribute('href') : `${url}${linkElement.getAttribute('href')}`
+		}
+
+		console.log(jobDetails);
 	}
-
-	const pageSplitDetails = pageDetails.data.split("\n").map(elem => elem.trim()).filter(elem => elem.length > 0);
-
-	// const fs = await import("fs");
-	// fs.writeFileSync("./Page.html", pageSplitDetails.join("\n"));
-	if (test) console.log(pageSplitDetails.length);
-
-	// create the regex for the string to find, and search for it, also checking for the specific element that is at the start of the line
-	const findRegex = new RegExp(stringToFind.string, "gi");
-
-	if (test) console.log(findRegex);
-
-	const searchIndex = pageSplitDetails.findIndex(elem => elem.match(findRegex) && (stringToFind.startsWith ? elem.startsWith(stringToFind.startsWith) : true));
-
-	// check if the index wasn't found
-	if (!searchIndex) {
-		console.log("no index found");
-		return;
-	}
-
-	// now get the amount of job positions found with these search params
-	const matchRegex = new RegExp(`${stringToFind.specialNumTag ? stringToFind.specialNumTag : ""}(\\d+\\s*\\d+)`, "g");
-
-	if (test) console.log(matchRegex);
-
-	let [jobsTotal, ...jobsRest] = pageSplitDetails[searchIndex + (stringToFind.countFoundIn ? stringToFind.countFoundIn : 0)].match(matchRegex).map(elem => parseInt(elem));
-
-	const returnObject = {
-		jobsTotal: jobsTotal,
-		newJobs: stringToFind.new ? jobsRest[0] : undefined,
-		pagesTotal: Math.ceil(jobsTotal / stringToFind.jobsPerPage)
-	}
-
-	if (test) console.log(returnObject);
-
-	return returnObject;
-}
-
-async function getJobsFromList ({ urlAndSearch: urlAndSearch, stringToFind: stringToFind }) {
-	const test = true;
-
-	if (test) console.log(urlAndSearch, stringToFind);
-}
+};
 
 
-export { apiCall, sleepSync, getSiteJobCount, axiosCall, getJobCount }
+export { apiCall, sleepSync, axiosCall, getJobCount, getJobsFromList }
