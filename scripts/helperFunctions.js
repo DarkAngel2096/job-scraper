@@ -3,6 +3,7 @@ import https from "https";
 import axios from "axios";
 import querystring from "querystring";
 import { JSDOM } from "jsdom";
+import moment from "moment";
 
 // function to do an API call to somewhere
 async function apiCall(endpoint) {
@@ -57,62 +58,87 @@ const getJobCount = async ({ url, endpoint, queryParams }, { element, specialTex
     // combine base URL and query params
     const fullUrl = `${url}/${endpoint}?${new URLSearchParams(queryParams).toString()}`;
 
-    // get the JSDOM document variable
-    const pageDom = await JSDOM.fromURL(fullUrl);
+	try {
+		// get the JSDOM document variable
+		const pageDom = await JSDOM.fromURL(fullUrl);
 
-    // search all elems fitting the "element" variable
-    const foundElems = pageDom.window.document.querySelectorAll(element);
+		console.log(pageDom);
 
-    // use Array.from() to convert the NodeList to an array and filter for elements that contain the special text
-    const matchingElements = Array.from(foundElems).filter(elem => elem?.textContent?.toLowerCase().includes(specialText.toLowerCase()));
+	    // search all elems fitting the "element" variable
+	    const foundElems = pageDom.window.document.querySelectorAll(element);
 
-    // get the string that contains the job counts, removing any newlines and trimming it
-    const jobCountString = matchingElements?.shift()?.textContent.replace(/\r?\n|\r/g, "").trim();
+	    // use Array.from() to convert the NodeList to an array and filter for elements that contain the special text
+	    const matchingElements = Array.from(foundElems).filter(elem => elem?.textContent?.toLowerCase().includes(specialText.toLowerCase()));
 
-    // extract the total number of jobs and new jobs count (if hasNew is true) from the job count string using regex
-    const [jobsTotal, newJobsCount] = jobCountString.match(/\d+/g).map(Number);
+	    // get the string that contains the job counts, removing any newlines and trimming it
+	    const jobCountString = matchingElements?.shift()?.textContent.replace(/\r?\n|\r/g, "").trim();
 
-    // create the return object, and return it
-    const returnObject = {
-        jobsTotal,
-        newJobs: hasNew ? newJobsCount : undefined,
-        pagesTotal: Math.ceil(jobsTotal / jobsPerPage)
-    };
-    return returnObject;
+	    // extract the total number of jobs and new jobs count (if hasNew is true) from the job count string using regex
+	    const [jobsTotal, newJobsCount] = jobCountString.match(/\d+/g).map(Number);
+
+	    // create the return object, and return it
+	    const returnObject = {
+	        jobsTotal,
+	        newJobs: hasNew ? newJobsCount : undefined,
+	        pagesTotal: Math.ceil(jobsTotal / jobsPerPage)
+	    };
+	    return returnObject;
+		
+	} catch (err) {
+		console.log(err);
+	}
 };
 
 
-
-
+// function to get the list of jobs from the web page
 const getJobsFromList = async ({ url, endpoint, queryParams }, { element, specialSelector, dataClasses, linkFull }) => {
 	// combine base URL and query params
 	const fullUrl = `${url}/${endpoint}?${new URLSearchParams(queryParams).toString()}`;
+
 	// get the JSDOM document variable
     const pageDom = await JSDOM.fromURL(fullUrl);
 
 	// build the selector used in the querySelectorAll function to find all the job postings
-	const selector = `${element}${specialSelector ? `[class*="${specialSelector}"]` : ""}`
+	const selector = `${element}${specialSelector[0] ? `[class*="${specialSelector[0]}"]` : ""}`
 
 	// search all elems fitting the "element" variable
     const foundElems = pageDom.window.document.querySelectorAll(selector);
 
+	// array to hold each of the jobs found
+	let allJobsArray = [];
 
 	// loop over all the elements found
 	for (let foundElem of Array.from(foundElems)) {
-		const parentElement = foundElem.closest(dataClasses.parent);
-		const titleElement = parentElement.querySelector(dataClasses.jobTitle);
-		const postedElement = parentElement.querySelector(dataClasses.posted);
-	 	const linkElement = parentElement.querySelector(dataClasses.link);
+		// check if we have defined the parent element, or if the query selector is already getting the parent
+		if (specialSelector[1]) foundElem = foundElem.closest(specialSelector[1]);
 
-		let jobDetails = {
-			jobTitle: titleElement?.textContent.replace(/\r?\n|\r/g, "").trim(),
-			companyTitle: foundElem.getAttribute(dataClasses.companyName),
-			posted: postedElement?.textContent.replace(/\r?\n|\r/g, "").trim(),
-			link: linkFull ? linkElement.getAttribute('href') : `${url}${linkElement.getAttribute('href')}`
+		// variable for holding the data for the job
+		let jobDetails = {};
+
+		// loop over all the details to search for the details
+		for (let [elem, data] of Object.entries(dataClasses)) {
+			// get the data from the element needed, doing some fancy stuff if the data is in an attribute instead of the text content
+			jobDetails[elem] = data.length > 1
+				? (data[1] == "parent" ? foundElem.getAttribute(data[1]) : foundElem.querySelector(data[0]).getAttribute(data[1]))
+				: foundElem.querySelector(data[0]).textContent.replace(/\r?\n|\r/g, "").trim();
+
+			// if we are working on the link element, check if linkFull is ture or false, if false, add url to start
+			if (elem == "link" && !linkFull) {
+				jobDetails.link = url + jobDetails.link;
+			}
+
+			// if we are working on the posted element, use moment to get the date into a format which would be the same
+			if (elem == "posted") {
+				jobDetails.posted = moment(jobDetails.posted, "DD MM YYYY").format("DD.MM.YYYY");
+			}
 		}
 
-		console.log(jobDetails);
+		// push the job to the total
+		allJobsArray.push(jobDetails);
 	}
+
+	// and return the array
+	return allJobsArray;
 };
 
 

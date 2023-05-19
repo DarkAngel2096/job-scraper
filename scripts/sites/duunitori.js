@@ -1,6 +1,6 @@
-import { getJobCount, getJobsFromList } from "./../../helperFunctions.js";
+import { getJobCount, getJobsFromList } from "./../helperFunctions.js";
 
-export default async function main() {
+export default async function main( simple = false ) {
     // variable for the url and it's search params
     let urlAndSearch = {
         url: "https://duunitori.fi",
@@ -25,22 +25,22 @@ export default async function main() {
 
     for (let page = 1; page <= jobCounts.pagesTotal; page++) {
         urlAndSearch.queryParams.page = page;
-        console.log("getting page: " + page);
+        //console.log("getting page: " + page);
 
         promises.push(getJobsFromList(urlAndSearch, {
             element: "a",
-            specialSelector: "search-result",
+            specialSelector: ["search-result", ".job-box"],
             dataClasses: {
-                parent: ".job-box",
-                jobTitle: ".job-box__title",
-                companyName: "data-company",
-                posted: ".job-box__job-posted",
-                link: "gtm-search-result"
+                jobTitle: [".job-box__title"],
+                companyName: [ ".gtm-search-result", "data-company"],
+                posted: [".job-box__job-posted"],
+                link: [".gtm-search-result", "href"]
             }
         }));
     }
 
     let promiseData = await Promise.all(promises);
 
-    console.log(promiseData);
+    console.log("got: " + promiseData.flat().length);
+    console.log(promiseData.flat()[0]);
 }

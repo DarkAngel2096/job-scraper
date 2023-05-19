@@ -1,6 +1,6 @@
-import { getJobCount, getJobsFromList } from "./../../helperFunctions.js";
+import { getJobCount, getJobsFromList } from "./../helperFunctions.js";
 
-export default async function main() {
+export default async function main( simple = false ) {
     // variable for the url and it's search params
     let urlAndSearch = {
         url: "https://www.jobly.fi",
@@ -25,17 +25,16 @@ export default async function main() {
 
     for (let page = 0; page < jobCounts.pagesTotal; page++) {
         urlAndSearch.queryParams.page = page;
-        console.log("getting page: " + page);
+        //console.log("getting page: " + page);
 
-        promises.push(await getJobsFromList(urlAndSearch, {
+        promises.push(getJobsFromList(urlAndSearch, {
             element: "div",
-            specialSelector: "job__content",
+            specialSelector: ["job__content"],
             dataClasses: {
-                parent: ".node-teaser",
-                jobTitle: ".node__title",
-                companyName: ".recruiter-company-profile-job-organization",
-                posted: ".date",
-                link: ".recruiter-job-link"
+                jobTitle: [".recruiter-job-link"],
+                companyName: [".recruiter-company-profile-job-organization"],
+                posted: [".date"],
+                link: [".recruiter-job-link", "href"]
             },
             linkFull: true
         }));
@@ -43,5 +42,6 @@ export default async function main() {
 
     let promiseData = await Promise.all(promises);
 
-    console.log(promiseData);
+    console.log("got: " + promiseData.flat().length);
+    console.log(promiseData.flat()[0]);
 }

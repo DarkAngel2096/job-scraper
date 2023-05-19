@@ -7,48 +7,31 @@ console.log(`Starting the script at: '${scriptStartTime.toLocaleTimeString()}'`)
 
 // get process args
 const args = process.argv.slice(2);
-//console.log(args);
+
+// check if the first arg got is "simple", used for just getting the basic details of a job, not the full description etc
+let simple = false;
+if (args[0].toLowerCase().trim() === "simple") {
+    // doinf shift to remove the "simple" arg from the start if found, that way checking for sites later doesn't get messed up
+    args.shift();
+    simple = true;
+}
 
 // read the site dirs found
 const sites = fs.readdirSync("./scripts/sites");
-//console.log(sites);
 
 // import the files found in a loop
-let files = {
-    simple: {},
-    full: {}
-};
-
+let files = {};
 for (let site of sites) {
-    // check if simple file exists and import it if it does
-    if (fs.existsSync(`./scripts/sites/${site}/simple.js`)) {
-        // check if any of the args match with the site name
-        if (args.length === 0 || (args.length > 0 && args.includes(site.toLowerCase().trim()))) {
-            files.simple[site] = await import(`./sites/${site}/simple.js`);
-        }
+    // check if any of the args match with the site name, slice used to remove the ".js" from the end
+    if (args.length === 0 || (args.length > 0 && args.includes(site.slice(0, -3).toLowerCase().trim()))) {
+        files[site] = await import(`./sites/${site}`);
     }
-
-    // check if full file exists and import it if it does
-    if (fs.existsSync(`./scripts/sites/${site}/full.js`)) {
-        // check if any of the args match with the site name
-        if (args.length === 0 || (args.length > 0 && args.includes(site.toLowerCase().trim()))) {
-            files.full[site] = await import(`./sites/${site}/full.js`);
-        }
-    }
-}
-// to run a script, do `site.default()` to run it
-
+}   // to run a script, do `site.default()` to run it
 
 // loop through the args, checking if a site should be checked through
-for (let [siteKey, siteFunction] of Object.entries(files.simple)) {
+for (let [siteKey, siteFunction] of Object.entries(files)) {
     console.log("\nsite found: " + siteKey);
-    await siteFunction.default();
-}
-
-// loop through the args, checking if a site should be checked through
-for (let [siteKey, siteFunction] of Object.entries(files.full)) {
-    //console.log(siteKey);
-    //await siteFunction.default();
+    await siteFunction.default(simple);
 }
 
 
